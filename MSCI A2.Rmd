@@ -1,0 +1,149 @@
+---
+title: "MSCI 718 - Assignment 2"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(ggplot2)
+```
+
+## R Markdown
+
+The whole dataset is all about the TB estimates in 216 countries over a period of 18 years.The data covers different forms of TB cases and the patients who have been affected by HIV as well. There are in total 4040 observations collected for 50 different aspects. From the four data sets available on TB related data, we are working on the foremost dataset to understand the affect of TB on population in general.  
+
+The other datasets do not have tidy data and have a lot of missing values. In some of the cases, 0 values represent null values which makes it difficult to distinguish between the absolute value and the unknown value. In other cases, we observe that columns have been combined into one which makes the data difficult to interpret.
+
+In the following dataset, each country has been represented by iso2(char), iso3(char), isonumeric(int) and g_whoregion(char) (all being factor values). The g_whoregion has no specification in the dictionary, therefore the interpretation of the variable remains unknown. For each country, the data is observed for 18 years(int) and the corresponding values such as population, number of incidents occured(with HIV and without HIV), number of mortal cases( in different scenerios such as cases with TB and TB-HIV), number of fatal cases, number of new TB cases and the detection ratio(all being numerical values). Each of the major categorizations as described above have a defined upper bound and lower bound defining the range of the data. #### range 
+Different representations of the same category such as the total number, number of cases in 100k and percentage makes it easier to analyze the data deeply. 
+For Also the values for fatal ratio is given for 2018 only.
+Goal: 
+Hypothesis: An increase in the detection ratio shall result in a decrease in the number of mortal cases.
+thefollowing observations were made of the dataset:
+1. The dataset was observed to be tidy. 
+2. There were a few set of columns that were repetitive and were ignored during the analysis. 
+3. There were also observed null values for the detection ratio, mortality cases and total incident cases for some countries and were removed.
+
+```{r cars}
+TB_burden_countries_2020.02.24 <- read.csv("C:/Users/aisha/OneDrive/Desktop/TB_burden_countries_2020-02-24.csv", header=TRUE)
+View(TB_burden_countries_2020.02.24)
+TB <- data.frame(TB_burden_countries_2020.02.24)
+rm(TB_burden_countries_2020.02.24)
+View(TB)
+library(dplyr)
+year_2000 <- filter(TB,year == 2000)
+year_2018 <- filter(TB,year == 2018)
+View(year_2000)
+year_2001 <- filter(TB,year == 2001)
+rm(year_2001)
+afg <- filter(TB,country == "Afghanistan")
+View(afg)
+TB2 <- na.omit(TB,cols ="c_cdr")
+cor(TB2$e_mort_exc_tbhiv_100k,TB2$c_cdr)
+```
+
+It was observed that as the population increases, the number of people being infected increases as well. 
+The variables that we are taking into consideration are the detection ratio and number of mortality cases caused due to all forms of TB. Since the number of people died because of TB are directly dependent on the total number of people being infected with TB, therefore we create a new variable named mortality rate which is calculated as follows:
+
+This gives us the range of mortality between 
+This table has been observed to have 205 countries without null values.
+
+We want to analyze the trend between the 
+
+ASSUMPTIONS - 
+
+1) There are 52 countries whose population is decreasing over the years, which can be told due to the migration of the people from those contries.
+2) We are assuming the the e_inc_num takes in consideration all the 3 types of TB cases only. No other kind of infected patient's count is calculated.
+3) We assume that  11++the data is complete and has been collected for people belonging to different age groups and gender
+
+
+Here for the test for correlation, we've used Spearsman Test because, the variables we are performing the correlation are ordinal. This test of correlation measures the strength and the direction of the monotonic relationship between the ordinal variables. Since we're trying to find the trend between detection ratio and the mortality rate, Spearsman's Test was found to be the most optimal solution to find the correlation.
+PLANNING : TRANSFORM-####
+
+The spearsman's test assumes that the data is ordinal and 
+
+```{r}
+r<-TB2$e_inc_tbhiv_100k/TB2$e_mort_tbhiv_100k
+#TB2(TB2$e_mort_num,TB2$c_cdr) <- complete.cases(TB[,"c_cdr"])
+#data[TB2]
+#DF(!is.na(TB$c_cdr))
+TB2 <- TB[!is.na(TB$c_cdr),]
+cor(TB2$e_mort_tbhiv_num,TB2$e_inc_tbhiv_num)
+TB2 <- TB[!is.na(TB$e_mort_exc_tbhiv_num),]
+TB2 <- TB[!is.na(TB$c_cdr),]
+TB2 <- TB[!is.na(TB$e_inc_tbhiv_num),]
+TB2 <- TB2[!is.na(TB2$c_cdr),]
+cor(TB2$e_mort_num,TB2$c_cdr)
+cor(afg$e_mort_num,afg$c_cdr)
+growth_rate = TB %>% group_by(country) %>% mutate(Growth = ( e_pop_num - lag(e_pop_num))/lag(e_pop_num))
+mort_rate = TB2 %>% group_by(country) %>% mutate(mort_rate = ( e_mort_num/e_inc_num)*100)
+cor(mort_rate$mort_rate,mort_rate$c_cdr)
+mort_rate_afg = afg %>% mutate(mort_rate = ( e_mort_num/e_inc_num)*100)
+ggplot(data = mort_rate_afg,aes(x=c_cdr,y=mort_rate)) + geom_point()
+mort_rate_with_survive = mort_rate %>% group_by(country) %>% mutate(survival_rate = 100 - mort_rate)
+cor(mort_rate_with_survive$c_cdr,mort_rate_with_survive$survival_rate,method = 'spearman')
+cor(mort_rate_afg$c_cdr,mort_rate_afg$mort_rate)
+year_00_18 <- filter(TB2,year %in% c("2000","2018"))
+
+growth_rate_all = year_00_18 %>% group_by(country) %>% mutate(Growth = (e_pop_num -lag(e_pop_num))/lag(e_pop_num))
+growth_rate <- year_00_18 %>% 
+  group_by(iso_numeric) %>% 
+  mutate(growth = e_pop_num - lag(e_pop_num))
+require(data.table)
+setDT(year_00_18)
+year_00_18[ , growth := e_pop_num - shift(e_pop_num), by = country]
+mort_rate_2 <- filter(mort_rate,year %in% c("2000","2018"))
+require(data.table)
+setDT(mort_rate_2)
+mort_rate_2[ , growth := e_pop_num - shift(e_pop_num), by = country]
+mort_rate_2 <- filter(mort_rate_2,growth >= 0)
+cor(mort_rate$c_cdr,mort_rate$mort_rate,method = "spearman")
+library(ggplot2)
+ggplot(mort_rate,aes(x=c_cdr,y=mort_rate,color = year)) + geom_line()
+ggplot(mort_rate_2,aes(x=c_cdr,y=mort_rate,color = year)) + geom_point()
+
+
+cor(TB$e_pop_num,TB$e_inc_num)
+ggplot(mort_rate,aes(x=e_inc_num,y=mort_rate,color=year)) + geom_point() + geom_smooth(method = 'lm')
+cor(mort_rate$e_inc_100k,mort_rate$e_mort_100k)
+ggplot(mort_rate,aes(x=c_cdr,y=mort_rate)) + geom_smooth(method = 'lm')
+cor(mort_rate$e_inc_num,mort_rate$c_cdr)
+require(data.table)
+setDT(year_2018)
+year_2018[ , growth := e_pop_num - shift(e_pop_num), by = country]
+year_2018 <- filter(mort_rate,year == 2018)
+cor(year_2018$cfr_pct,year_2018$mort_rate, "pairwise.complete.obs")
+ggplot(year_2018,aes(x=cfr_pct,y=mort_rate)) + geom_point() + theme_bw()
+
+```
+
+The slope itself 
+## Including Plots
+
+You can also embed plots, for example:
+
+```{r pressure, echo=FALSE}
+mort_rate_3<-filter(mort_rate,country=='India')
+cor(mort_rate_3$mort_rate,mort_rate_3$c_cdr,'pairwise.complete.obs',method='spearman')
+
+c_cdr_greater<-filter(mort_rate, c_cdr>=100)
+mort_rate_greater<-filter(mort_rate, mort_rate>=100)
+```
+```{r}
+require(data.table)
+setDT(year_00_18)
+year_00_18[ , c_cdr2 := c_cdr - shift(c_cdr), by = country]
+length(filter(year_00_18,c_cdr2 <= 0))
+t.test(mort_rate$mort_rate,mort_rate$c_cdr)
+```
+For the countries that have increasing population have shown to have correlation > 0.9(concluded based on results tested on 50 countries sample). Some of the countries also show uncertain observation such as the mortality rate and detection rate ratio exceeding 100%. The reasons for the same could be people migrating to the country were already infected with TB.
+
+```{r}
+ggplot(mort_rate,aes(x=e_pop_num,y=e_inc_num)) + geom_smooth(method = 'lm') + theme_bw()
+```
+The above graph shows a relationship between the total population and the number of incidents that took place.
+```{r}
+ggplot(mort_rate,aes(x=c_cdr,y=mort_rate)) + geom_point()
+
+
+```
